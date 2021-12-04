@@ -1,6 +1,5 @@
 package com.sapient.weather.error;
 
-import org.apache.catalina.connector.Response;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ControllerAdvice;
@@ -12,12 +11,12 @@ import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExcep
 @ControllerAdvice
 @ResponseStatus
 public class RestResponseExceptionHandler extends ResponseEntityExceptionHandler {
-	
+
 	@ExceptionHandler(WeatherInfoNotFoundException.class)
-	public ResponseEntity<ErrorMessage> weatherNotFoundException(WeatherInfoNotFoundException exception, WebRequest req) {
-		
-		ErrorMessage message = new ErrorMessage(HttpStatus.NOT_FOUND,exception.getMessage());
+	public ResponseEntity<ErrorMessage> weatherNotFoundException(WeatherInfoNotFoundException exception,
+			WebRequest req) {
 		System.out.println("RestResponseExceptionHandler.weatherNotFoundException()");
+		ErrorMessage message = new ErrorMessage(HttpStatus.NOT_FOUND, exception.getMessage());
 		return ResponseEntity.status(HttpStatus.NOT_FOUND).body(message);
- }
+	}
 }

@@ -1,7 +1,10 @@
 package com.sapient.weather.service;
 
+import java.net.NoRouteToHostException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.Date;
+import java.util.concurrent.TimeUnit;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -10,93 +13,111 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
 import com.sapient.weather.error.WeatherInfoNotFoundException;
-import com.sapient.weather.response.City;
+import com.sapient.weather.response.Weather;
 import com.sapient.weather.response.WeatherResponse;
 
 @Service
-public class WeatherServiceImpl implements WeatherService{
+public class WeatherServiceImpl implements WeatherService {
 
-    @Value("${weather.app.hotincelcius}")
-    private String hotincelcius;
+	@Value("${weather.app.hotincelcius}")
+	private String hotincelcius;
 
-    @Value("${weather.app.windinmph}")
-    private String windinmph;
+	@Value("${weather.app.windinmph}")
+	private String windinmph;
 
-    @Value("weather.app.endpoint.api")
-    private String endpoint;
+	@Value("${weather.app.endpoint.api}")
+	private String endpoint;
 
-    @Value("${weather.app.key}")
-    private String apiKey;
-    
-    private RestTemplate restTemplate = null;
-    
-    @Autowired
-    public WeatherServiceImpl(RestTemplateBuilder builder) {
-        this.restTemplate = builder.build();
-    }
-    
-    @Override
-    public Object getWeather(String city) throws WeatherInfoNotFoundException{
-    	System.out.println("WeatherServiceImpl.getWeather() City "+city);
-        System.out.println("hotincelcius-->>" + hotincelcius);
-        System.out.println("windinmph-->>" + windinmph);
-        System.out.println("WeatherServiceImpl.getWeather()"+apiKey);
-        String template = new String("https://api.openweathermap.org/data/2.5/forecast?q=%s&appid=%s&cnt=10");
-        String uri  =  template.format(template, city,apiKey);
-        System.out.println("WeatherServiceImpl.getWeather() Uri "+uri);
-        URI uri2 = null; 
-        try {
-        	uri2 = new URI(uri);
+	@Value("${weather.app.key}")
+	private String apiKey;
+
+	@Value("${weather.app.count}")
+	private String cnt;
+	private RestTemplate restTemplate = null;
+
+	@Autowired
+	public WeatherServiceImpl(RestTemplateBuilder builder) {
+		this.restTemplate = builder.build();
+	}
+
+	@Override
+	public Object getWeather(String city) throws WeatherInfoNotFoundException {
+		System.out.println("WeatherServiceImpl.getWeather() endpoint " + endpoint);
+		String template = endpoint;
+		String uri = template.format(template, city, apiKey, cnt);
+		URI uri2 = null;
+		try {
+			uri2 = new URI(uri);
 		} catch (URISyntaxException e) {
 			// TODO Auto-generated catch block
-			e.printStackTrace();
+			System.out.println("WeatherServiceImpl.getWeather() Inside Exception");
+			throw new WeatherInfoNotFoundException("Service Not Available");
 		}
-        WeatherResponse value = restTemplate.getForObject(uri2, WeatherResponse.class);
-        System.out.println("WeatherServiceImpl.getWeather() "+value.getCity());
-        City city1 = value.getCity();
-        System.out.println("WeatherServiceImpl.getWeather() Name "+city1.getName());
-        System.out.println("WeatherServiceImpl.getWeather() "+value.toString());
-       
-     //  WeatherResponse response = getParsedResponse(value);
-		/*
-		 * java.util.List<com.sapient.weather.service.List> list = value.getList();
-		 * list.forEach((n)->
-		 * System.out.println("WeatherServiceImpl.getWeather() "+n.getVisibility()));
-		 * list.forEach((n)-> { if((null!=n ) && (n.getRain() != null)) {
-		 * System.out.println("WeatherServiceImpl.getWeather() Rain ="+n.getRain().get3h
-		 * ());
-		 * 
-		 * 
-		 * } else { System.out.println("WeatherServiceImpl.getWeather()");
-		 * 
-		 * 
-		 * } }); if(list == null) { throw new
-		 * WeatherInfoNotFoundException("Infor not available"); } list.forEach((n)-> {
-		 * if(n.getMain()!=null) {
-		 * System.out.println("WeatherServiceImpl.getWeather() Max Temperature "+n.
-		 * getMain().getTempMax()+"Min Temperature "+n.getMain().getTempMin()); } });
-		 */
-        
-        throw new WeatherInfoNotFoundException("Service Not Available");
-      //  return null;
-    }
+		WeatherResponse value = null;
+		try {
+			value = restTemplate.getForObject(uri2, WeatherResponse.class);
+		} catch (Exception e) {
+			if (e instanceof NoRouteToHostException)
+				throw new WeatherInfoNotFoundException("Weather Service Not Available");
+		}
+		System.out.println("WeatherServiceImpl.getWeather() " + value.toString());
+		com.sapient.weather.response.List response = getWeatherDetails(value);
 
+		return getWeatherResponseSapient(response);
+	}
 
-	/*
-	 * private WeatherResponse
-	 * getParsedResponse(com.sapient.weather.response.WeatherResponse weather) {
-	 * java.util.List<com.sapient.weather.response.List> list = weather.getList();
-	 * WeatherResponse response = new WeatherResponse(); for(int i=0;
-	 * i<list.size();i++) { com.sapient.weather.response.List obj = list.get(i);
-	 * Double speed = obj.getWind().getSpeed();
-	 * System.out.println("WeatherServiceImpl.getParsedResponse() Speed = "+speed);
-	 * if(speed > 10) { response.setTemp("It's too Windy ..Watch Out "); }
-	 * System.out.println("WeatherServiceImpl.getParsedResponse()"+obj.getMain().
-	 * toString()); }
-	 * 
-	 * return response;
-	 * 
-	 * 
-	 * }
-	 */
+	private com.sapient.weather.response.List getWeatherDetails(WeatherResponse value) {
+		java.util.List<com.sapient.weather.response.List> list = value.getList();
+		com.sapient.weather.response.List response = null;
+		for (int i = 0; i < list.size(); i++) {
+			response = list.get(i);
+			long timeDiff = getCurrentUtcTimeJoda(response.getDt());
+			if (timeDiff > 0 && timeDiff <= 3) {
+				break;
+			}
+		}
+		return response;
+	}
+
+	private long getCurrentUtcTimeJoda(Integer WeatherTime) {
+
+		long CurrentUnixTime = System.currentTimeMillis() / 1000L;
+		long unixSeconds = CurrentUnixTime;
+		long hrs = -1;
+		// convert seconds to milliseconds
+		Date date = new java.util.Date(unixSeconds * 1000L);
+		long unixSeconds1 = WeatherTime;
+		// convert seconds to milliseconds
+		Date date1 = new java.util.Date(unixSeconds1 * 1000L);
+		if (WeatherTime > CurrentUnixTime) {
+			long diff = date1.getTime() - date.getTime();// as given
+			hrs = TimeUnit.MILLISECONDS.toHours(diff);
+			System.out.println("WeatherServiceImpl.getCurrentUtcTimeJoda() Hrs  " + hrs);
+		}
+		return hrs;
+	}
+
+	private WeatherResponseSapient getWeatherResponseSapient(com.sapient.weather.response.List list) {
+		Double tempK = list.getMain().getTempMax();
+		Double tempC = tempK - 273;
+		WeatherResponseSapient response = new WeatherResponseSapient();
+		if (tempC > 40) {
+			response.setTemperature("Use Lotion");
+		}
+		java.util.List<Weather> weatherList = list.getWeather();
+		for (int i = 0; i < weatherList.size(); i++) {
+			if (weatherList.get(i).getDescription().contains("rain")) {
+				response.setRain("Carry umbrella");
+			} else {
+				response.setRain("Normal Weather");
+			}
+		}
+		if (list.getWind().getSpeed() > 10) {
+			response.setWind("Its too windy !! Watch Out!");
+		} else {
+			response.setWind("Normal Wind ");
+		}
+		return response;
+
+	}
 }
