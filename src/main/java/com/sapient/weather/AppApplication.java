@@ -7,6 +7,8 @@ import org.springframework.vault.client.VaultEndpoint;
 import org.springframework.vault.core.VaultTemplate;
 import org.springframework.vault.support.VaultResponseSupport;
 
+import com.sapient.weather.response.cache.WeatherResponseCache;
+
 @SpringBootApplication
 public class AppApplication {
 

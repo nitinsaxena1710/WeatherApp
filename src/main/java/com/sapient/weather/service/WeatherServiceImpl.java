@@ -15,6 +15,7 @@ import org.springframework.web.client.RestTemplate;
 import com.sapient.weather.error.WeatherInfoNotFoundException;
 import com.sapient.weather.response.Weather;
 import com.sapient.weather.response.WeatherResponse;
+import com.sapient.weather.response.cache.WeatherResponseCache;
 
 @Service
 public class WeatherServiceImpl implements WeatherService {
@@ -42,28 +43,37 @@ public class WeatherServiceImpl implements WeatherService {
 
 	@Override
 	public Object getWeather(String city) throws WeatherInfoNotFoundException {
-		System.out.println("WeatherServiceImpl.getWeather() endpoint " + endpoint);
 		String template = endpoint;
 		String uri = template.format(template, city, apiKey, cnt);
 		URI uri2 = null;
-		try {
-			uri2 = new URI(uri);
-		} catch (URISyntaxException e) {
-			// TODO Auto-generated catch block
-			System.out.println("WeatherServiceImpl.getWeather() Inside Exception");
-			throw new WeatherInfoNotFoundException("Service Not Available");
+		WeatherResponseCache cache = WeatherResponseCache.getInstance();
+		WeatherResponse response = cache.getWeatherResponseList(city);
+		boolean isFetchReq = false;
+		if (null != response) {
+			if (!isCacheValid(response)) {
+				isFetchReq = true;
+				cache.purgeData(city);
+			}
 		}
-		WeatherResponse value = null;
-		try {
-			value = restTemplate.getForObject(uri2, WeatherResponse.class);
-		} catch (Exception e) {
-			if (e instanceof NoRouteToHostException)
-				throw new WeatherInfoNotFoundException("Weather Service Not Available");
+		if (null == response || isFetchReq) {
+			try {
+				uri2 = new URI(uri);
+			} catch (URISyntaxException e) {
+				// TODO Auto-generated catch block
+				throw new WeatherInfoNotFoundException("Service Not Available");
+			}
+			try {
+				response = restTemplate.getForObject(uri2, WeatherResponse.class);
+			} catch (Exception e) {
+				if (e instanceof NoRouteToHostException)
+					throw new WeatherInfoNotFoundException("Weather Service Not Available");
+			}
+			cache.cacheWeatherInfoList(city, response);
 		}
-		System.out.println("WeatherServiceImpl.getWeather() " + value.toString());
-		com.sapient.weather.response.List response = getWeatherDetails(value);
 
-		return getWeatherResponseSapient(response);
+		com.sapient.weather.response.List responseList = getWeatherDetails(response);
+
+		return getWeatherResponseSapient(responseList);
 	}
 
 	private com.sapient.weather.response.List getWeatherDetails(WeatherResponse value) {
@@ -92,7 +102,7 @@ public class WeatherServiceImpl implements WeatherService {
 		if (WeatherTime > CurrentUnixTime) {
 			long diff = date1.getTime() - date.getTime();// as given
 			hrs = TimeUnit.MILLISECONDS.toHours(diff);
-			System.out.println("WeatherServiceImpl.getCurrentUtcTimeJoda() Hrs  " + hrs);
+			System.out.println("WeatherServiceImpl.getCurrentUtcTimeJoda() Time Difference in hrs  " + hrs);
 		}
 		return hrs;
 	}
@@ -118,6 +128,22 @@ public class WeatherServiceImpl implements WeatherService {
 			response.setWind("Normal Wind ");
 		}
 		return response;
+
+	}
+
+	private boolean isCacheValid(WeatherResponse response) {
+		java.util.List<com.sapient.weather.response.List> list = response.getList();
+		Integer date = list.get(list.size() - 1).getDt();
+		boolean isCacheValid =  false; 
+		System.out.println("WeatherServiceImpl.isCacheValid() date "+date);
+		if(-1==getCurrentUtcTimeJoda(date)) {
+			isCacheValid = false ;
+		}
+		else {
+			isCacheValid = true;
+		}
+		System.out.println("WeatherServiceImpl.isCacheValid() isCacheValid "+isCacheValid);
+		return isCacheValid;
 
 	}
 }
