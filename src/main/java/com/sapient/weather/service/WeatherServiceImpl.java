@@ -6,6 +6,8 @@ import java.net.URISyntaxException;
 import java.util.Date;
 import java.util.concurrent.TimeUnit;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.web.client.RestTemplateBuilder;
@@ -40,6 +42,8 @@ public class WeatherServiceImpl implements WeatherService {
 	public WeatherServiceImpl(RestTemplateBuilder builder) {
 		this.restTemplate = builder.build();
 	}
+	
+	private static final Logger logger = LoggerFactory.getLogger(WeatherServiceImpl.class);
 
 	@Override
 	public Object getWeather(String city) throws WeatherInfoNotFoundException {
@@ -49,6 +53,7 @@ public class WeatherServiceImpl implements WeatherService {
 		WeatherResponseCache cache = WeatherResponseCache.getInstance();
 		WeatherResponse response = cache.getWeatherResponseList(city);
 		boolean isFetchReq = false;
+		logger.info("Weather Information for  "+city);
 		if (null != response) {
 			if (!isCacheValid(response)) {
 				isFetchReq = true;
@@ -67,12 +72,14 @@ public class WeatherServiceImpl implements WeatherService {
 			} catch (Exception e) {
 				if (e instanceof NoRouteToHostException)
 					throw new WeatherInfoNotFoundException("Weather Service Not Available");
+				else
+					logger.info("Exception "+e.getMessage());
 			}
 			cache.cacheWeatherInfoList(city, response);
 		}
 
 		com.sapient.weather.response.List responseList = getWeatherDetails(response);
-
+		
 		return getWeatherResponseSapient(responseList);
 	}
 
@@ -101,7 +108,7 @@ public class WeatherServiceImpl implements WeatherService {
 		if (WeatherTime > CurrentUnixTime) {
 			long diff = date1.getTime() - date.getTime();
 			hrs = TimeUnit.MILLISECONDS.toHours(diff);
-			System.out.println("WeatherServiceImpl.getCurrentUtcTimeJoda() Time Difference in hrs  " + hrs);
+			logger.info("Time Difference in Hrs   "+hrs);
 		}
 		return hrs;
 	}
@@ -134,13 +141,12 @@ public class WeatherServiceImpl implements WeatherService {
 		java.util.List<com.sapient.weather.response.List> list = response.getList();
 		Integer date = list.get(list.size() - 1).getDt();
 		boolean isCacheValid = false;
-		System.out.println("WeatherServiceImpl.isCacheValid() date " + date);
 		if (-1 == getCurrentUtcTimeJoda(date)) {
 			isCacheValid = false;
 		} else {
 			isCacheValid = true;
 		}
-		System.out.println("WeatherServiceImpl.isCacheValid() isCacheValid " + isCacheValid);
+		logger.info("isCacheValid   "+isCacheValid);
 		return isCacheValid;
 
 	}
