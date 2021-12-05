@@ -79,9 +79,9 @@ public class WeatherServiceImpl implements WeatherService {
 	private com.sapient.weather.response.List getWeatherDetails(WeatherResponse value) {
 		java.util.List<com.sapient.weather.response.List> list = value.getList();
 		com.sapient.weather.response.List response = null;
-		for (int i = 0; i < list.size(); i++) {
-			response = list.get(i);
-			long timeDiff = getCurrentUtcTimeJoda(response.getDt());
+		for (com.sapient.weather.response.List responseTemp : list) {
+			response = responseTemp;
+			long timeDiff = getCurrentUtcTimeJoda(responseTemp.getDt());
 			if (timeDiff > 0 && timeDiff <= 3) {
 				break;
 			}
@@ -90,7 +90,6 @@ public class WeatherServiceImpl implements WeatherService {
 	}
 
 	private long getCurrentUtcTimeJoda(Integer WeatherTime) {
-
 		long CurrentUnixTime = System.currentTimeMillis() / 1000L;
 		long unixSeconds = CurrentUnixTime;
 		long hrs = -1;
@@ -100,7 +99,7 @@ public class WeatherServiceImpl implements WeatherService {
 		// convert seconds to milliseconds
 		Date date1 = new java.util.Date(unixSeconds1 * 1000L);
 		if (WeatherTime > CurrentUnixTime) {
-			long diff = date1.getTime() - date.getTime();// as given
+			long diff = date1.getTime() - date.getTime();
 			hrs = TimeUnit.MILLISECONDS.toHours(diff);
 			System.out.println("WeatherServiceImpl.getCurrentUtcTimeJoda() Time Difference in hrs  " + hrs);
 		}
@@ -115,8 +114,8 @@ public class WeatherServiceImpl implements WeatherService {
 			response.setTemperature("Use Lotion");
 		}
 		java.util.List<Weather> weatherList = list.getWeather();
-		for (int i = 0; i < weatherList.size(); i++) {
-			if (weatherList.get(i).getDescription().contains("rain")) {
+		for (Weather weather : weatherList) {
+			if (weather.getDescription().contains("rain")) {
 				response.setRain("Carry umbrella");
 			} else {
 				response.setRain("Normal Weather");
@@ -134,15 +133,14 @@ public class WeatherServiceImpl implements WeatherService {
 	private boolean isCacheValid(WeatherResponse response) {
 		java.util.List<com.sapient.weather.response.List> list = response.getList();
 		Integer date = list.get(list.size() - 1).getDt();
-		boolean isCacheValid =  false; 
-		System.out.println("WeatherServiceImpl.isCacheValid() date "+date);
-		if(-1==getCurrentUtcTimeJoda(date)) {
-			isCacheValid = false ;
-		}
-		else {
+		boolean isCacheValid = false;
+		System.out.println("WeatherServiceImpl.isCacheValid() date " + date);
+		if (-1 == getCurrentUtcTimeJoda(date)) {
+			isCacheValid = false;
+		} else {
 			isCacheValid = true;
 		}
-		System.out.println("WeatherServiceImpl.isCacheValid() isCacheValid "+isCacheValid);
+		System.out.println("WeatherServiceImpl.isCacheValid() isCacheValid " + isCacheValid);
 		return isCacheValid;
 
 	}
