@@ -1,6 +1,7 @@
 package com.sapient.weather.service;
 
 import java.net.NoRouteToHostException;
+import java.net.SocketException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Date;
@@ -36,13 +37,17 @@ public class WeatherServiceImpl implements WeatherService {
 
 	@Value("${weather.app.count}")
 	private String cnt;
+
+	@Value("${weather.app.toggle}")
+	private boolean toggle;
+
 	private RestTemplate restTemplate = null;
 
 	@Autowired
 	public WeatherServiceImpl(RestTemplateBuilder builder) {
 		this.restTemplate = builder.build();
 	}
-	
+
 	private static final Logger logger = LoggerFactory.getLogger(WeatherServiceImpl.class);
 
 	@Override
@@ -50,17 +55,13 @@ public class WeatherServiceImpl implements WeatherService {
 		String template = endpoint;
 		String uri = template.format(template, city, apiKey, cnt);
 		URI uri2 = null;
+		WeatherResponse response = null;
 		WeatherResponseCache cache = WeatherResponseCache.getInstance();
-		WeatherResponse response = cache.getWeatherResponseList(city);
-		boolean isFetchReq = false;
-		logger.info("Weather Information for  "+city);
-		if (null != response) {
-			if (!isCacheValid(response)) {
-				isFetchReq = true;
-				cache.purgeData(city);
-			}
+		logger.info("Weather Information for  " + city);
+		if (toggle) {
+			response = readAndValidateCache(city);
 		}
-		if (null == response || isFetchReq) {
+		if (null == response) {
 			try {
 				uri2 = new URI(uri);
 			} catch (URISyntaxException e) {
@@ -69,18 +70,40 @@ public class WeatherServiceImpl implements WeatherService {
 			}
 			try {
 				response = restTemplate.getForObject(uri2, WeatherResponse.class);
+				cache.cacheWeatherInfoList(city, response);
 			} catch (Exception e) {
-				if (e instanceof NoRouteToHostException)
-					throw new WeatherInfoNotFoundException("Weather Service Not Available");
-				else
-					logger.info("Exception "+e.getMessage());
+				response = readAndValidateCache(city);
+				logger.info("response " + response);
+				if (null == response) {
+					if (e instanceof SocketException)
+						throw new WeatherInfoNotFoundException("Weather Service Not Available");
+					else {
+						logger.info("Exception " + e.getMessage());
+						throw new WeatherInfoNotFoundException("Please try again later ");
+					}
+				}
 			}
-			cache.cacheWeatherInfoList(city, response);
-		}
 
-		com.sapient.weather.response.List responseList = getWeatherDetails(response);
-		
-		return getWeatherResponseSapient(responseList);
+		}
+		WeatherResponseSapient weatherResponse = null;
+		if (null != response) {
+			com.sapient.weather.response.List responseList = getWeatherDetails(response);
+			weatherResponse = getWeatherResponseSapient(responseList);
+
+		}
+		return weatherResponse ;
+	}
+
+	private WeatherResponse readAndValidateCache(String city) {
+		WeatherResponseCache cache = WeatherResponseCache.getInstance();
+		WeatherResponse response = cache.getWeatherResponseList(city);
+		if (null != response) {
+			if (!isCacheValid(response)) {
+				cache.purgeData(city);
+				response = null;
+			}
+		}
+		return response;
 	}
 
 	private com.sapient.weather.response.List getWeatherDetails(WeatherResponse value) {
@@ -108,7 +131,7 @@ public class WeatherServiceImpl implements WeatherService {
 		if (WeatherTime > CurrentUnixTime) {
 			long diff = date1.getTime() - date.getTime();
 			hrs = TimeUnit.MILLISECONDS.toHours(diff);
-			logger.info("Time Difference in Hrs   "+hrs);
+			logger.info("Time Difference in Hrs   " + hrs);
 		}
 		return hrs;
 	}
@@ -117,7 +140,8 @@ public class WeatherServiceImpl implements WeatherService {
 		Double tempK = list.getMain().getTempMax();
 		Double tempC = tempK - 273;
 		WeatherResponseSapient response = new WeatherResponseSapient();
-		if (tempC > 40) {
+		Double tempComparison 	=	Double.parseDouble(hotincelcius);
+		if (tempC > tempComparison) {
 			response.setTemperature("Use Lotion");
 		}
 		java.util.List<Weather> weatherList = list.getWeather();
@@ -146,7 +170,7 @@ public class WeatherServiceImpl implements WeatherService {
 		} else {
 			isCacheValid = true;
 		}
-		logger.info("isCacheValid   "+isCacheValid);
+		logger.info("isCacheValid   " + isCacheValid);
 		return isCacheValid;
 
 	}
