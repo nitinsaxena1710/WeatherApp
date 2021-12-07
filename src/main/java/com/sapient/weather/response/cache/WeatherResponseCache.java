@@ -8,6 +8,10 @@ import org.slf4j.LoggerFactory;
 import com.sapient.weather.response.WeatherResponse;
 import com.sapient.weather.service.WeatherServiceImpl;
 
+/**
+ * @author nsaxena
+ *
+ */
 public class WeatherResponseCache implements IWeatherResponse {
 
 	private static Hashtable<String, WeatherResponse> cache = new Hashtable<>();
@@ -17,7 +21,8 @@ public class WeatherResponseCache implements IWeatherResponse {
 	private WeatherResponseCache() {
 
 	}
-
+	
+	
 	public static WeatherResponseCache getInstance() {
 		if (null == obj) {
 			obj = new WeatherResponseCache();
@@ -25,7 +30,7 @@ public class WeatherResponseCache implements IWeatherResponse {
 		return obj;
 	}
 
-	@Override
+	
 	public WeatherResponse getWeatherResponseList(String city) {
 		WeatherResponse response = null;
 		if (null != city) {
@@ -43,7 +48,7 @@ public class WeatherResponseCache implements IWeatherResponse {
 
 	}
 
-	@Override
+	
 	public void purgeData(String city) {
 		if (null != city && cache != null) {
 			cache.remove(city);

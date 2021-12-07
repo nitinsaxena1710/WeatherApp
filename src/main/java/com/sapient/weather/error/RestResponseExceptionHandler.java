@@ -12,10 +12,14 @@ import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExcep
 @ResponseStatus
 public class RestResponseExceptionHandler extends ResponseEntityExceptionHandler {
 
+	/**
+	 * @param exception
+	 * @param req
+	 * @return ResponseEntity
+	 */
 	@ExceptionHandler(WeatherInfoNotFoundException.class)
 	public ResponseEntity<ErrorMessage> weatherNotFoundException(WeatherInfoNotFoundException exception,
 			WebRequest req) {
-		System.out.println("RestResponseExceptionHandler.weatherNotFoundException()");
 		ErrorMessage message = new ErrorMessage(HttpStatus.NOT_FOUND, exception.getMessage());
 		return ResponseEntity.status(HttpStatus.NOT_FOUND).body(message);
 	}

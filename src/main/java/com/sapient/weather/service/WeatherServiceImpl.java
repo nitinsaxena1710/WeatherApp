@@ -20,6 +20,10 @@ import com.sapient.weather.response.Weather;
 import com.sapient.weather.response.WeatherResponse;
 import com.sapient.weather.response.cache.WeatherResponseCache;
 
+/**
+ * @author nsaxena
+ *
+ */
 @Service
 public class WeatherServiceImpl implements WeatherService {
 

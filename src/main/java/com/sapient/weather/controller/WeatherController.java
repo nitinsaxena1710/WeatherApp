@@ -15,6 +15,11 @@ public class WeatherController {
     @Autowired
     public WeatherService weatherService;
 
+    /**
+     * @param city
+     * @return
+     * @throws WeatherInfoNotFoundException
+     */
     @GetMapping("/{city}")
     public Object getWeatherInfo(@PathVariable("city") String city) throws WeatherInfoNotFoundException {
     	  return weatherService.getWeather(city);
